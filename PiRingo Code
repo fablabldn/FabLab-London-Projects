@@ -1,0 +1,177 @@
+#Replica theft alarm box
+#Based on the example PiRingo code
+#See  https://github.com/4tronix/PiRingo for more examples
+
+#setup necessary libraries
+import time, random, RPi.GPIO as GPIO
+
+#Ignore GPIO warnings due to previosily ran programs
+GPIO.setwarnings(False)
+
+#Tell GPIO library to use physical GPIO connector pins
+GPIO.setmode(GPIO.BOARD)
+
+# Define pins to use for switches and LEDs
+SWITCH1_PIN = 19
+SWITCH2_PIN = 21
+LEDS = [7, 11, 12, 13, 15, 16, 18, 22, 24, 26, 8, 10]
+
+# Define value to use for LEDs ON and OFF states
+LEDOFF = 1
+LEDON = 0
+NUMLEDS = 12
+
+#Function to initialise GPIO pins, Set up LED pins as outputs, Switches as inputs
+def setupgpio():
+    a = 0
+    while a < NUMLEDS:
+        GPIO.setup(LEDS[a],GPIO.OUT)
+        a +=1
+    GPIO.setup(SWITCH1_PIN,GPIO.IN,pull_up_down=GPIO.PUD_UP)
+    GPIO.setup(SWITCH2_PIN,GPIO.IN,pull_up_down=GPIO.PUD_UP)
+
+# Function to switch all LEDs ON
+def allon ():
+    for val in LEDS:
+        GPIO.output(val,LEDON)
+
+# Function to switch all LEDs OFF
+def alloff ():
+    for val in LEDS:
+        GPIO.output(val,LEDOFF)
+
+#Function to wait
+def wait (val):
+    time.sleep(val)
+
+#Function to make the flashing lights rotate clockwise around the board
+def rotateclockwise (val):
+    alloff()
+    a = 7
+    count = 0
+    while count < val:
+        b = a - 1
+        if b < 0:
+            b = NUMLEDS - 1
+        GPIO.output(LEDS[b],LEDOFF)        
+        GPIO.output(LEDS[a],LEDON)
+        a = a + 1
+        if a >= NUMLEDS:
+            a = 0
+        time.sleep(0.15)
+        count += 1
+        
+#For turning on a single LED
+def test(val):
+    GPIO.output(LEDS[val],LEDON)
+
+#Fuction to make the flashing lights rotate anticlockwise around the board        
+def rotateanticlockwise (val):
+    alloff()
+    a = 7
+    count = 0
+
+    while count < val:
+        b = a + 1
+        if b > 11:
+            b = 0
+        GPIO.output(LEDS[b],LEDOFF)
+        GPIO.output(LEDS[a],LEDON)
+        a = a - 1
+        if a < 0:
+            a = 11
+        time.sleep(0.15)
+        count += 1
+
+#Function to make all lights flash on and off a set number of times
+def flash(times):
+    alloff()
+    a = 0
+    count = 0
+    while count < times:
+        for val in LEDS:
+           GPIO.output(val,LEDON)
+        time.sleep(0.6)
+        for val in LEDS:
+            GPIO.output(val,LEDOFF)
+        time.sleep(0.6)
+        count += 1
+
+#This function is running most of the time. LED7 is on solidly while LED11 flickers
+def work(val):
+    count = 0
+    dice = 0
+    alloff()
+    GPIO.output(LEDS[7],LEDON)
+    while count < val:
+        dice = random.randint(0,1)
+        if dice == 0:
+            GPIO.output(LEDS[11],LEDON)
+        if dice == 1:
+            GPIO.output(LEDS[11],LEDOFF)
+        wait(0.1)
+        count +=1
+
+#Start up function.  LEDS turn on one by one
+def startup():
+    a = 7
+    count = 0
+    while count < 11:
+        GPIO.output(LEDS[a],LEDON)
+        wait(0.3)
+        a += 1
+
+        if a == 12:
+            a = 0
+
+        count += 1
+    alloff()
+    
+        
+#Multiple lights spin round the board. Resetting follows.
+def reset(val):
+    a = 2
+    count = 0
+    while count <= val:
+        alloff()
+        GPIO.output(LEDS[(a-1)],LEDON)
+        GPIO.output(LEDS[(a+2)],LEDON)
+        GPIO.output(LEDS[(a+5)],LEDON)
+        GPIO.output(LEDS[(a+8)],LEDON)
+        if count == 0:
+            wait(1.2)
+        if count == val:
+            wait(0.8)
+        a += 1
+        if a > 3:
+         a = 1
+        wait(0.3)
+        count += 1
+        
+    
+
+# Function to do the planned jobs (and repeat indefinately)
+def jobs():
+    
+    work(18000)
+   
+    rotateclockwise(25)
+    wait(0.4)
+    alloff()
+    rotateanticlockwise(25)
+    wait(0.4)
+    alloff()
+    reset(15)
+    jobs()
+
+setupgpio()
+alloff()
+startup()
+alloff()
+flash(3)
+allon()
+wait(1)
+alloff()
+jobs()
+wait(5)
+GPIO.cleanup()
